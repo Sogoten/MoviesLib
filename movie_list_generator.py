@@ -433,7 +433,11 @@ def rebuild_html(script_dir: str, library: dict, source_folder: str) -> None:
 def pick_folder_dialog():
     """Ανοίγει το native παράθυρο επιλογής φακέλου των Windows (μέσω PowerShell).
     Επιστρέφει (path, error). path='' αν ακυρώθηκε. Το αποτέλεσμα περνάει από προσωρινό αρχείο UTF-8
-    (όχι από stdout) ώστε να μην εξαρτάται από console/encoding."""
+    (όχι από stdout) ώστε να μην εξαρτάται από console/encoding.
+
+    Για να εμφανιστεί ο dialog ΜΠΡΟΣΤΑ από τον browser: τα Windows μπλοκάρουν το
+    SetForegroundWindow από διεργασίες που δεν είναι foreground, οπότε στέλνουμε πρώτα
+    ένα συνθετικό Alt πάτημα (ξεκλειδώνει το foreground lock) και μετά καλούμε SetForegroundWindow."""
     if platform.system() != "Windows":
         return "", "Το παράθυρο επιλογής φακέλου υποστηρίζεται μόνο σε Windows."
 
@@ -442,11 +446,18 @@ def pick_folder_dialog():
     ps = (
         "$ErrorActionPreference = 'Stop';"
         "Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing;"
+        "Add-Type -Namespace W -Name U -MemberDefinition '"
+        "[DllImport(\"user32.dll\")] public static extern bool SetForegroundWindow(IntPtr h);"
+        "[DllImport(\"user32.dll\")] public static extern void keybd_event(byte b, byte s, uint f, UIntPtr e);';"
         "$o = New-Object System.Windows.Forms.Form;"
         "$o.TopMost = $true; $o.ShowInTaskbar = $false; $o.StartPosition = 'Manual';"
         "$o.Location = New-Object System.Drawing.Point(-2000, -2000);"
         "$o.Size = New-Object System.Drawing.Size(1, 1);"
-        "$o.Show(); $o.Activate();"
+        "$o.Show();"
+        "[W.U]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero);"   # ALT down
+        "[W.U]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero);"   # ALT up
+        "[void][W.U]::SetForegroundWindow($o.Handle);"
+        "$o.Activate();"
         "$d = New-Object System.Windows.Forms.FolderBrowserDialog;"
         "$d.Description = 'Διάλεξε τον φάκελο με τις ταινίες';"
         "if ($d.ShowDialog($o) -eq 'OK') { "
