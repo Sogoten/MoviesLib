@@ -1,0 +1,12 @@
+build/
+dist/
+release/
+config.json
+library.json
+movies_list.html
+posters/
+register_vlc_protocol.reg
+vlc_handler.py
+vlc_handler.spec
+__pycache__/
+*.pyc
